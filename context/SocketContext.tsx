@@ -56,54 +56,68 @@ export const SocketContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleCall = useCallback(async (receiver: SocketUser) => {
     if (!currentSocketUser || !socket) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setMyStream(stream);
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    setMyStream(stream);
+      const callId = crypto.randomUUID();
+      const newPeer = new Peer({ initiator: true, trickle: false, stream });
 
-    const callId = crypto.randomUUID();
-    const newPeer = new Peer({ initiator: true, trickle: false, stream });
+      newPeer.on("signal", (signal) => {
+        const participants: Participants = { callId, caller: currentSocketUser, receiver, signal };
+        socket.emit("call", participants);
+        setOngoingCall({ participants, isRinging: false });
+      });
 
-    newPeer.on("signal", (signal) => {
-      const participants: Participants = { callId, caller: currentSocketUser, receiver, signal };
-      socket.emit("call", participants);
-      setOngoingCall({ participants, isRinging: false });
-    });
+      newPeer.on("stream", (stream) => setRemoteStream(stream));
+      newPeer.on("close", endCall);
+      newPeer.on("error", (err) => {
+        toast.error(`Call failed: ${err.message}`);
+        console.error(err);
+        endCall();
+      });
 
-    newPeer.on("stream", (stream) => setRemoteStream(stream));
-    newPeer.on("close", endCall);
-    newPeer.on("error", (err) => {
-      toast.error("Call failed.");
-      console.error(err);
-      endCall();
-    });
-
-    setPeer(newPeer);
+      setPeer(newPeer);
+    } catch (error) {
+      toast.error("Could not start call. Please ensure you have a camera and microphone enabled.");
+      console.error("Error getting user media:", error);
+    }
   }, [socket, currentSocketUser, endCall]);
 
   const handleAnswer = useCallback(async () => {
     if (!socket || !ongoingCall) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setMyStream(stream);
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    setMyStream(stream);
+      const newPeer = new Peer({ initiator: false, trickle: false, stream });
 
-    const newPeer = new Peer({ initiator: false, trickle: false, stream });
+      newPeer.on("signal", (signal) => {
+          const updatedParticipants = {
+          ...ongoingCall.participants,
+          signal,
+        };
+        console.log('Answering call with participants:', updatedParticipants);
 
-    newPeer.on("signal", (signal) => {
-      socket.emit("answerCall", { ...ongoingCall.participants, signal });
-    });
+        socket.emit('answerCall', updatedParticipants);
+      });
 
-    newPeer.on("stream", (stream) => setRemoteStream(stream));
-    newPeer.on("close", endCall);
-    newPeer.on("error", (err) => {
-      toast.error("Call failed.");
-      console.error(err);
-      endCall();
-    });
+      newPeer.on('stream', (stream) => setRemoteStream(stream));
+      newPeer.on('close', endCall);
+      newPeer.on('error', (err) => {
+        toast.error(`Call error: ${err.message}`);
+        console.error(err);
+        endCall();
+      });
 
-    newPeer.signal(ongoingCall.participants.signal);
-    setOngoingCall((prev) => prev ? { ...prev, isRinging: false } : null);
-    setPeer(newPeer);
-    router.push(`/call/${ongoingCall.participants.callId}`);
+      newPeer.signal(ongoingCall.participants.signal);
+      setOngoingCall((prev) => prev ? { ...prev, isRinging: false } : null);
+      setPeer(newPeer);
+      router.push(`/call/${ongoingCall.participants.callId}`);
+    } catch (error) {
+      console.error("Error accessing media devices:", error);
+      toast.error("Could not access camera/microphone.");
+    }
   }, [socket, ongoingCall, endCall, router]);
 
   const handleDecline = useCallback(() => {
