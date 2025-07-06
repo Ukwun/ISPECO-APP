@@ -7,7 +7,10 @@ import Container from "@/components/layout/Container";
 import { Button } from "@/components/ui/button";
 import UserStatus from "../components/layout/UserStatus";
 import Link from "next/link";
-import React, { createContext, useContext, useMemo } from "react";
+import { Toaster } from "sonner";
+import { SocketContextProvider } from "@/context/SocketContext"; // <-- Import your client provider
+import CallNotification from "@/components/CallNotification";
+import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,22 +27,6 @@ export const metadata: Metadata = {
   description: "Video Call",
 };
 
-export const SocketContext = createContext<any>(null);
-
-export function SocketContextProvider({ children }: { children: React.ReactNode }) {
-  // ...initialize your socket or state here
-  const socketValue = useMemo(() => {
-    // ...socket logic
-    return {}; // replace with your socket value
-  }, []);
-
-  return (
-    <SocketContext.Provider value={socketValue}>
-      {children}
-    </SocketContext.Provider>
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -48,20 +35,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <div className="fixed top-4 left-8 flex gap-2 z-50">
-            <div className="border border-gray-300 rounded px-4 py-2 flex items-center justify-center">
-              <Button variant="default" asChild className="w-full h-full p-0 bg-transparent border-none shadow-none">
-                <Link href="/sign-up" className="w-full h-full flex items-center justify-center">Sign Up</Link>
-              </Button>
-            </div>
-            <div className="border border-gray-300 rounded px-4 py-2 flex items-center justify-center">
-              <Button variant="secondary" asChild className="w-full h-full p-0 bg-transparent border-none shadow-none">
-                <Link href="/sign-in" className="w-full h-full flex items-center justify-center">Sign In</Link>
-              </Button>
-            </div>
-            <UserStatus hideAuthLinks />
-          </div>
+        <body className={cn(geistSans.variable, geistMono.variable, 'relative font-sans')}>
           <SocketContextProvider>
             <main className="flex flex-col min-h-screen bg-secondary">
               <Navbar />
@@ -69,9 +43,11 @@ export default function RootLayout({
                 {children}
               </Container>
             </main>
+            <Toaster position="top-right" richColors />
+            <CallNotification />
           </SocketContextProvider>
         </body>
       </html>
-        </ClerkProvider>
-      );
-    }
+    </ClerkProvider>
+  );
+}

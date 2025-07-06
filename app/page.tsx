@@ -1,8 +1,13 @@
-import Image from "next/image";
+"use client";
+
+import CallNotification from "@/components/CallNotification";
+import ListOnlineUsers from "@/components/ListOnlineUsers";
 
 export default function Home() {
   return (
-    <div>vidchat</div>
-    
+    <div>
+      <ListOnlineUsers />
+      <CallNotification />
+    </div>
   );
 }
