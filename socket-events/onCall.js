@@ -1,10 +1,15 @@
 const onCall = (participants, io) => {
-  if (participants?.receiver?.socketId) {
-    console.log("📞 Emitting incomingCall to receiver:", participants.receiver.socketId);
-    io.to(participants.receiver.socketId).emit("incomingCall", participants);
+  const receiver = participants?.receiver;
+  const caller = participants?.caller;
+
+  if (!receiver || !receiver.socketId) {
+    console.warn("❌ Cannot emit call: missing receiver or socketId", participants);
+    return;
   }
+
+  console.log(`📞 Incoming call from ${caller?.username} to ${receiver?.username} (Socket ID: ${receiver.socketId})`);
+
+  io.to(receiver.socketId).emit("incomingCall", participants);
 };
 
 export default onCall;
-// This function handles the call event by emitting an 'incomingCall' event to the receiver's socket ID.
-// It expects `participants` to contain the receiver's socket ID and other relevant information.

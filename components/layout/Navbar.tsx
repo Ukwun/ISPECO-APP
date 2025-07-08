@@ -1,75 +1,48 @@
 "use client";
 
 import Container from "./Container";
-import { Video } from "lucide-react";
+import { Video, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { UserButton, useAuth } from "@clerk/nextjs";
+import { UserButton, useAuth, SignOutButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { useContext, useEffect, useState } from "react";
-import { SocketContext } from "@/context/SocketContext";
-
-type SocketUser = {
-  id: string;
-  username: string;
-  profileImageUrl: string;
-};
-
-export const OnlineUsers = () => {
-  const socketContext = useContext(SocketContext);
-  const socket = socketContext?.socket;
-  const [onlineUsers, setOnlineUsers] = useState<SocketUser[]>([]);
-
-  useEffect(() => {
-    if (!socket) return;
-    const handleGetUsers = (users: SocketUser[]) => setOnlineUsers(users);
-    socket.on("getUsers", handleGetUsers);
-    return () => socket.off("getUsers", handleGetUsers);
-  }, [socket]);
-
-  if (!onlineUsers.length) return null;
-
-  return (
-    <div className="flex gap-2 items-center ml-4">
-      <span className="text-xs text-gray-500">Online:</span>
-      {onlineUsers.map((user) => (
-        <span key={user.id} title={user.username}>
-          <img
-            src={user.profileImageUrl}
-            alt={user.username}
-            width={24}
-            height={24}
-            style={{ borderRadius: "50%", display: "inline-block", marginRight: 4 }}
-          />
-        </span>
-      ))}
-    </div>
-  );
-};
+import OnlineUsers from "@/components/OnlineUsers";
 
 const Navbar = () => {
-  const Router = useRouter();
+  const router = useRouter();
   const { isSignedIn } = useAuth();
+
   return (
     <div className="sticky top-0 border-b-2 border-primary bg-white z-50 w-full">
       <Container>
         <div className="flex justify-between items-center w-full">
+          {/* App Logo and Navigation */}
           <div
             className="flex items-center gap-1 cursor-pointer"
-            onClick={() => Router.push("/")}
+            onClick={() => router.push("/")}
           >
             <Video className="w-6 h-6 text-gray-800" strokeWidth={2.5} />
             <div className="text-xl font-bold">ISPECO</div>
           </div>
-          <div className="flex gap-6 items-center">
-            <Link href="/sign-in">
-              <Button variant="default">Sign In</Button>
-            </Link>
-            <Link href="/sign-up">
-              <Button variant="secondary">Sign Up</Button>
-            </Link>
-            <UserButton afterSignOutUrl="/" />
-            <OnlineUsers />
+
+          {/* Right Section: Auth and Users */}
+          <div className="flex items-center gap-4">
+            {isSignedIn && (
+              <>
+                <UserButton afterSignOutUrl="/" />
+
+                {/* Switch Account Button */}
+                <SignOutButton signOutCallback={() => router.push("/")}>
+                  <Button variant="ghost" className="flex items-center gap-1 text-sm">
+                    <LogOut className="w-4 h-4" />
+                    Switch Account
+                  </Button>
+                </SignOutButton>
+
+                <div className="hidden md:flex">
+                  <OnlineUsers variant="navbar" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </Container>

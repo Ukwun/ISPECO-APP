@@ -12,6 +12,10 @@ const ListOnlineUsers = () => {
     (onlineUser) => onlineUser.id !== user?.id
   );
 
+  console.log("✅ Online users:", onlineUsers);
+
+  console.log("👤 Current user:", user?.id);
+
   return (
     <div className="w-full border-b-primary/10 p-4">
       <h2 className="mb-2 text-lg font-semibold">Online Users</h2>

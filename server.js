@@ -12,23 +12,45 @@ const handler = app.getRequestHandler();
 
 app.prepare().then(() => {
   const httpServer = createServer(handler);
-  const io = new Server(httpServer); // <-- LOCAL reference
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*", // ⚠️ Adjust this in production
+      methods: ["GET", "POST"],
+    },
+  });
+
   let onlineUsers = [];
 
   io.on("connection", (socket) => {
-    console.log("✅ Client connected");
+    console.log("✅ Client connected:", socket.id);
 
     socket.emit("getUsers", onlineUsers);
 
     socket.on("addNewUser", (clerkUser) => {
-      if (clerkUser?.id && !onlineUsers.some(user => user.id === clerkUser.id)) {
-        onlineUsers.push({
+      console.log("🧍 New user:", clerkUser);
+      if (!clerkUser?.id) {
+        console.warn("❌ Invalid user attempted to connect");
+        return;
+      }
+
+      const userIndex = onlineUsers.findIndex(u => u.id === clerkUser.id);
+
+      if (userIndex !== -1) {
+        // If user exists, update their socketId to handle reconnections
+        onlineUsers[userIndex].socketId = socket.id;
+        console.log("🔄 User reconnected, updated socketId:", onlineUsers[userIndex]);
+      } else {
+        // If user is new, add them to the list
+        const newUser = {
           id: clerkUser.id,
           socketId: socket.id,
           username: clerkUser.username,
           profile: clerkUser.profile,
-        });
+        };
+        onlineUsers.push(newUser);
+        console.log("➕ New user added to online list:", newUser);
       }
+
       io.emit("getUsers", onlineUsers);
     });
 
@@ -41,24 +63,27 @@ app.prepare().then(() => {
     });
 
     socket.on("call", (participants) => {
-      onCall(participants, io); // ✅ Pass io explicitly here
+      console.log("📞 Call initiated by", participants?.caller?.username);
+      onCall(participants, io);
     });
 
     socket.on("answerCall", (participants) => {
-      if (participants?.caller?.socketId) {
-        io.to(participants.caller.socketId).emit("callAccepted", participants);
+      const callerSocketId = participants?.caller?.socketId;
+      if (callerSocketId) {
+        io.to(callerSocketId).emit("callAccepted", participants);
       }
     });
 
     socket.on("declineCall", (participants) => {
-      const isCaller = participants.caller.socketId === socket.id;
-      const otherParticipant = isCaller ? participants.receiver : participants.caller;
-      if (otherParticipant?.socketId) {
-        io.to(otherParticipant.socketId).emit("callDeclined");
+      const isCaller = participants?.caller?.socketId === socket.id;
+      const otherSocketId = isCaller ? participants?.receiver?.socketId : participants?.caller?.socketId;
+      if (otherSocketId) {
+        io.to(otherSocketId).emit("callDeclined");
       }
     });
 
     socket.on("disconnect", () => {
+      console.log("❌ Client disconnected:", socket.id);
       onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id);
       io.emit("getUsers", onlineUsers);
     });

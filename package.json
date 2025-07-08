@@ -15,6 +15,8 @@
     "@radix-ui/react-slot": "^1.2.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "framer-motion": "^12.23.0",
     "lucide-react": "^0.525.0",
     "next": "15.3.4",
@@ -40,5 +42,21 @@
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
   },
-  "json.schemaDownload.enable": false
+  "json.schemaDownload.enable": false,
+  "description": "HEAD\r # ISPECO-APP\r A webcam software, with web rtc\r =======\r This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
+  "main": "server.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ukwun/ISPECO-APP.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ukwun/ISPECO-APP/issues"
+  },
+  "homepage": "https://github.com/Ukwun/ISPECO-APP#readme"
 }
