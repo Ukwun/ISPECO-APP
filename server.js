@@ -15,93 +15,82 @@ app.prepare().then(() => {
   const httpServer = createServer(handler);
   const io = new Server(httpServer, {
     cors: {
-      origin: "*", // ⚠️ Set your frontend domain in production
+      origin: "*", // Replace with specific domain in production
       methods: ["GET", "POST"],
     },
   });
 
   io.on("connection", (socket) => {
-    console.log("✅ Socket connected:", socket.id);
+    console.log("✅ Connected:", socket.id);
 
-    // Emit current user list to the new socket
-    socket.emit("getUsers", onlineUsers);
-
-    // New user connection
+    // 1. New user joins
     socket.on("addNewUser", (user) => {
       if (!user?.id) return;
 
-      const existingIndex = onlineUsers.findIndex((u) => u.id === user.id);
-
-      if (existingIndex !== -1) {
-        onlineUsers[existingIndex].socketId = socket.id;
+      const exists = onlineUsers.find((u) => u.id === user.id);
+      if (exists) {
+        exists.socketId = socket.id; // Update socket ID on reconnect
       } else {
-        const newUser = {
-          id: user.id,
-          socketId: socket.id,
-          username: user.username,
-          profile: user.profile,
-        };
-        onlineUsers.push(newUser);
+        onlineUsers.push({ ...user, socketId: socket.id });
+        console.log("➕ User joined:", user.username);
       }
 
       io.emit("getUsers", onlineUsers);
     });
 
-    // Caller initiates the call
+    // 2. Initiate a call
     socket.on("call", (participants) => {
-      const receiverSocketId = participants?.receiver?.socketId;
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("incomingCall", participants);
-        console.log("📞 Call initiated to:", participants.receiver.username);
+      const targetId = participants?.receiver?.socketId;
+      if (targetId) {
+        io.to(targetId).emit("incomingCall", participants);
+        console.log("📞 Call sent to:", participants.receiver.username);
       }
     });
 
-    // Receiver answers the call
+    // 3. Answer call
     socket.on("answerCall", (participants) => {
-      const callerSocketId = participants?.caller?.socketId;
-      if (callerSocketId) {
-        io.to(callerSocketId).emit("callAccepted", participants);
-        console.log("✅ Call accepted by:", participants.receiver.username);
+      const callerId = participants?.caller?.socketId;
+      if (callerId) {
+        io.to(callerId).emit("callAccepted", participants);
+        console.log("✅ Call answered by:", participants.receiver.username);
       }
     });
 
-    // Either party declines the call
+    // 4. Decline call
     socket.on("declineCall", (participants) => {
-      const callerSocketId = participants?.caller?.socketId;
-      const receiverSocketId = participants?.receiver?.socketId;
-      const targetSocketId = socket.id === callerSocketId ? receiverSocketId : callerSocketId;
+      const targetId =
+        participants?.caller?.socketId === socket.id
+          ? participants?.receiver?.socketId
+          : participants?.caller?.socketId;
 
-      if (targetSocketId) {
-        io.to(targetSocketId).emit("callDeclined");
+      if (targetId) {
+        io.to(targetId).emit("callDeclined");
         console.log("❌ Call declined.");
       }
     });
 
-    // WebRTC SDP and ICE signal exchange
-    socket.on("webrtcSignal", ({ targetSocketId, sdp, ongoingCall }) => {
+    // 5. WebRTC signaling
+    socket.on("webrtcSignal", ({ targetSocketId, sdp }) => {
       if (targetSocketId) {
-        io.to(targetSocketId).emit("webrtcSignal", {
-          sdp,
-          ongoingCall,
-        });
-        console.log("🔁 WebRTC signal forwarded.");
+        io.to(targetSocketId).emit("webrtcSignal", { sdp });
+        console.log("🔄 Signaling forwarded to", targetSocketId);
       }
     });
 
-    // Text messages
-    socket.on("sendMessage", (msg) => {
-      const withTimestamp = {
-        ...msg,
+    // 6. Messaging
+    socket.on("sendMessage", (message) => {
+      const msg = {
+        ...message,
         timestamp: new Date().toISOString(),
       };
-      io.emit("receiveMessage", withTimestamp);
+      io.emit("receiveMessage", msg);
     });
 
-    // Disconnect logic
+    // 7. Disconnection
     socket.on("disconnect", () => {
-      console.log("👋 Disconnected:", socket.id);
-      onlineUsers = onlineUsers.filter((user) => user.socketId !== socket.id);
+      onlineUsers = onlineUsers.filter((u) => u.socketId !== socket.id);
       io.emit("getUsers", onlineUsers);
+      console.log("👋 Disconnected:", socket.id);
     });
   });
 
