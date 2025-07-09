@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
-import onCall from "./socket-events/onCall.js";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -10,86 +9,103 @@ const port = 3000;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 
+let onlineUsers = [];
+
 app.prepare().then(() => {
   const httpServer = createServer(handler);
   const io = new Server(httpServer, {
     cors: {
-      origin: "*", // ⚠️ Adjust this in production
+      origin: "*", // ⚠️ Set your frontend domain in production
       methods: ["GET", "POST"],
     },
   });
 
-  let onlineUsers = [];
-
   io.on("connection", (socket) => {
-    console.log("✅ Client connected:", socket.id);
+    console.log("✅ Socket connected:", socket.id);
 
+    // Emit current user list to the new socket
     socket.emit("getUsers", onlineUsers);
 
-    socket.on("addNewUser", (clerkUser) => {
-      console.log("🧍 New user:", clerkUser);
-      if (!clerkUser?.id) {
-        console.warn("❌ Invalid user attempted to connect");
-        return;
-      }
+    // New user connection
+    socket.on("addNewUser", (user) => {
+      if (!user?.id) return;
 
-      const userIndex = onlineUsers.findIndex(u => u.id === clerkUser.id);
+      const existingIndex = onlineUsers.findIndex((u) => u.id === user.id);
 
-      if (userIndex !== -1) {
-        // If user exists, update their socketId to handle reconnections
-        onlineUsers[userIndex].socketId = socket.id;
-        console.log("🔄 User reconnected, updated socketId:", onlineUsers[userIndex]);
+      if (existingIndex !== -1) {
+        onlineUsers[existingIndex].socketId = socket.id;
       } else {
-        // If user is new, add them to the list
         const newUser = {
-          id: clerkUser.id,
+          id: user.id,
           socketId: socket.id,
-          username: clerkUser.username,
-          profile: clerkUser.profile,
+          username: user.username,
+          profile: user.profile,
         };
         onlineUsers.push(newUser);
-        console.log("➕ New user added to online list:", newUser);
       }
 
       io.emit("getUsers", onlineUsers);
     });
 
-    socket.on("sendMessage", (message) => {
-      const messageWithTimestamp = {
-        ...message,
-        timestamp: new Date().toISOString(),
-      };
-      io.emit("receiveMessage", messageWithTimestamp);
-    });
-
+    // Caller initiates the call
     socket.on("call", (participants) => {
-      console.log("📞 Call initiated by", participants?.caller?.username);
-      onCall(participants, io);
+      const receiverSocketId = participants?.receiver?.socketId;
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("incomingCall", participants);
+        console.log("📞 Call initiated to:", participants.receiver.username);
+      }
     });
 
+    // Receiver answers the call
     socket.on("answerCall", (participants) => {
       const callerSocketId = participants?.caller?.socketId;
       if (callerSocketId) {
         io.to(callerSocketId).emit("callAccepted", participants);
+        console.log("✅ Call accepted by:", participants.receiver.username);
       }
     });
 
+    // Either party declines the call
     socket.on("declineCall", (participants) => {
-      const isCaller = participants?.caller?.socketId === socket.id;
-      const otherSocketId = isCaller ? participants?.receiver?.socketId : participants?.caller?.socketId;
-      if (otherSocketId) {
-        io.to(otherSocketId).emit("callDeclined");
+      const callerSocketId = participants?.caller?.socketId;
+      const receiverSocketId = participants?.receiver?.socketId;
+      const targetSocketId = socket.id === callerSocketId ? receiverSocketId : callerSocketId;
+
+      if (targetSocketId) {
+        io.to(targetSocketId).emit("callDeclined");
+        console.log("❌ Call declined.");
       }
     });
 
+    // WebRTC SDP and ICE signal exchange
+    socket.on("webrtcSignal", ({ targetSocketId, sdp, ongoingCall }) => {
+      if (targetSocketId) {
+        io.to(targetSocketId).emit("webrtcSignal", {
+          sdp,
+          ongoingCall,
+        });
+        console.log("🔁 WebRTC signal forwarded.");
+      }
+    });
+
+    // Text messages
+    socket.on("sendMessage", (msg) => {
+      const withTimestamp = {
+        ...msg,
+        timestamp: new Date().toISOString(),
+      };
+      io.emit("receiveMessage", withTimestamp);
+    });
+
+    // Disconnect logic
     socket.on("disconnect", () => {
-      console.log("❌ Client disconnected:", socket.id);
-      onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id);
+      console.log("👋 Disconnected:", socket.id);
+      onlineUsers = onlineUsers.filter((user) => user.socketId !== socket.id);
       io.emit("getUsers", onlineUsers);
     });
   });
 
   httpServer.listen(port, () => {
-    console.log(`🚀 Server ready at http://${hostname}:${port}`);
+    console.log(`🚀 Server running at http://${hostname}:${port}`);
   });
 });

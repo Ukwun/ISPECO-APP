@@ -41,7 +41,7 @@ type ChatMessage = {
 export const SocketContext = createContext<ISocketContext | null>(null);
 
 export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const router = useRouter();
   const [socket, setSocket] = useState<IOSocket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<SocketUser[] | null>(null);
@@ -52,30 +52,26 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   const [peer, setPeer] = useState<Peer.Instance | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
+  const ICE_SERVERS = {
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      // Add TURN servers here if needed
+    ],
+  };
+
   const currentSocketUser = onlineUsers?.find((u) => u.id === user?.id);
 
-  const getMediaStream = useCallback(async (facemode?: string) => {
+  const getMediaStream = useCallback(async () => {
     if (localStream) return localStream;
-
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter((device) => device.kind === "videoinput");
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: {
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 },
-          frameRate: { min: 15, ideal: 30, max: 60 },
-          facingMode: videoDevices.length > 0 ? facemode : undefined,
-        },
-      });
-
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       setLocalStream(stream);
       return stream;
     } catch (error) {
-      console.log("failed to get media stream", error);
-      setLocalStream(null);
+      toast.error("Could not access camera or microphone.");
       return null;
     }
   }, [localStream]);
@@ -95,61 +91,73 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     const stream = await getMediaStream();
     if (!stream) return;
 
-    try {
-      const callId = crypto.randomUUID();
-      const newPeer = new Peer({ initiator: true, trickle: false, stream });
+    setMyStream(stream);
 
-      newPeer.on("signal", (signal) => {
-        const participants: Participants = { callId, caller: currentSocketUser, receiver, signal };
-        socket.emit("call", participants);
-        setOngoingCall({ participants, isRinging: false });
-      });
+    const callId = crypto.randomUUID();
+    const newPeer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream,
+      config: ICE_SERVERS,
+    });
 
-      newPeer.on("stream", (stream) => setRemoteStream(stream));
-      newPeer.on("close", endCall);
-      newPeer.on("error", (err) => {
-        toast.error(`Call failed: ${err.message}`);
-        endCall();
-      });
+    newPeer.on("signal", (signal) => {
+      const participants: Participants = { callId, caller: currentSocketUser, receiver, signal };
+      socket.emit("call", participants);
+      setOngoingCall({ participants, isRinging: false });
+    });
 
-      setPeer(newPeer);
-      setMyStream(stream);
-    } catch (error) {
-      toast.error("Could not start call. Please ensure camera/microphone are enabled.");
-      console.error("Error getting user media:", error);
-    }
-  }, [socket, currentSocketUser, endCall, getMediaStream]);
+    newPeer.on("stream", (incomingStream) => {
+      console.log("📥 Caller received remote stream");
+      setRemoteStream(incomingStream);
+    });
+
+    newPeer.on("close", endCall);
+    newPeer.on("error", (err) => {
+      toast.error(`Call failed: ${err.message}`);
+      endCall();
+    });
+
+    setPeer(newPeer);
+  }, [socket, currentSocketUser, getMediaStream, endCall]);
 
   const handleAnswer = useCallback(async () => {
     if (!socket || !ongoingCall) return;
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setMyStream(stream);
+    const stream = await getMediaStream();
+    if (!stream) return;
 
-      const newPeer = new Peer({ initiator: false, trickle: false, stream });
+    setMyStream(stream);
 
-      newPeer.on("signal", (signal) => {
-        const updatedParticipants = { ...ongoingCall.participants, signal };
-        socket.emit("answerCall", updatedParticipants);
-      });
+    const newPeer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream,
+      config: ICE_SERVERS,
+    });
 
-      newPeer.on("stream", (stream) => setRemoteStream(stream));
-      newPeer.on("close", endCall);
-      newPeer.on("error", (err) => {
-        toast.error(`Call error: ${err.message}`);
-        endCall();
-      });
+    newPeer.on("signal", (signal) => {
+      const updated = { ...ongoingCall.participants, signal };
+      socket.emit("answerCall", updated);
+    });
 
-      newPeer.signal(ongoingCall.participants.signal);
-      setOngoingCall((prev) => (prev ? { ...prev, isRinging: false } : null));
-      setPeer(newPeer);
-      router.push(`/call/${ongoingCall.participants.callId}`);
-    } catch (error) {
-      toast.error("Could not access camera/microphone.");
-      console.error("Error accessing media devices:", error);
-    }
-  }, [socket, ongoingCall, endCall, router]);
+    newPeer.on("stream", (incomingStream) => {
+      console.log("📥 Receiver received remote stream");
+      setRemoteStream(incomingStream);
+    });
+
+    newPeer.on("close", endCall);
+    newPeer.on("error", (err) => {
+      toast.error(`Call error: ${err.message}`);
+      endCall();
+    });
+
+    newPeer.signal(ongoingCall.participants.signal);
+    setPeer(newPeer);
+
+    setOngoingCall((prev) => prev ? { ...prev, isRinging: false } : null);
+    router.push(`/call/${ongoingCall.participants.callId}`);
+  }, [socket, ongoingCall, getMediaStream, endCall, router]);
 
   const handleDecline = useCallback(() => {
     if (!socket || !ongoingCall) return;
@@ -175,7 +183,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   }, []);
 
   useEffect(() => {
-    if (!socket || !isLoaded || !user?.id) return;
+    if (!socket || !user) return;
 
     const socketUser = {
       id: user.id,
@@ -184,13 +192,11 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     };
 
     const onConnect = () => {
-      console.log("🔌 Emitting addNewUser", socketUser);
       socket.emit("addNewUser", socketUser);
     };
 
     if (socket.connected) onConnect();
     socket.on("connect", onConnect);
-
     socket.on("getUsers", (users: SocketUser[]) => setOnlineUsers(users));
     socket.on("receiveMessage", (msg: ChatMessage) => setMessages((prev) => [...prev, msg]));
     socket.on("incomingCall", (participants: Participants) => {
@@ -198,7 +204,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     });
     socket.on("callAccepted", (participants: Participants) => {
       if (peer && participants.signal) peer.signal(participants.signal);
-      setOngoingCall((prev) => (prev ? { ...prev, isRinging: false } : null));
+      setOngoingCall((prev) => prev ? { ...prev, isRinging: false } : null);
       router.push(`/call/${participants.callId}`);
     });
     socket.on("callDeclined", () => {
@@ -214,7 +220,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       socket.off("callAccepted");
       socket.off("callDeclined");
     };
-  }, [socket, isLoaded, user, peer, endCall, router]);
+  }, [socket, user, peer, endCall, router]);
 
   return (
     <SocketContext.Provider
