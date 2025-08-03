@@ -10,19 +10,27 @@ const VideoContainer = ({ stream, isLocalStream, isOnCall }: IVideoContainer) =>
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (videoRef.current && stream && stream.getTracks().length > 0) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
 
   return (
-    <video
-      className="rounded border w-[800px]"
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted={isLocalStream}
-    />
+    <div className="relative">
+      {stream ? (
+        <video
+          ref={videoRef}
+          className="rounded border w-[800px]"
+          autoPlay
+          playsInline
+          muted={isLocalStream}
+        />
+      ) : (
+        <div className="w-[800px] h-[450px] bg-gray-200 flex items-center justify-center rounded border">
+          <p className="text-gray-500">No video stream</p>
+        </div>
+      )}
+    </div>
   );
 };
 

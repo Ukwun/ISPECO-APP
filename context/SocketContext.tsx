@@ -11,7 +11,7 @@ import {
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { io, Socket as IOSocket } from "socket.io-client";
-import Peer from "simple-peer";
+import Peer, { SignalData } from "simple-peer";
 import { toast } from "sonner";
 import { OngoingCall, Participants, SocketUser } from "@/types";
 
@@ -58,7 +58,6 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       { urls: "stun:stun1.l.google.com:19302" },
       { urls: "stun:stun2.l.google.com:19302" },
       { urls: "stun:stun3.l.google.com:19302" },
-      // Add TURN servers here if needed
     ],
   };
 
@@ -78,19 +77,20 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
   const endCall = useCallback(() => {
     myStream?.getTracks().forEach((track) => track.stop());
+    remoteStream?.getTracks().forEach((track) => track.stop());
     peer?.destroy();
     setPeer(null);
     setMyStream(null);
     setRemoteStream(null);
     setOngoingCall(null);
-  }, [myStream, peer]);
+    setLocalStream(null);
+  }, [myStream, remoteStream, peer]);
 
   const handleCall = useCallback(async (receiver: SocketUser) => {
     if (!currentSocketUser || !socket) return;
 
     const stream = await getMediaStream();
     if (!stream) return;
-
     setMyStream(stream);
 
     const callId = crypto.randomUUID();
@@ -107,11 +107,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       setOngoingCall({ participants, isRinging: false });
     });
 
-    newPeer.on("stream", (incomingStream) => {
-      console.log("📥 Caller received remote stream");
-      setRemoteStream(incomingStream);
-    });
-
+    newPeer.on("stream", setRemoteStream);
     newPeer.on("close", endCall);
     newPeer.on("error", (err) => {
       toast.error(`Call failed: ${err.message}`);
@@ -126,7 +122,6 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
     const stream = await getMediaStream();
     if (!stream) return;
-
     setMyStream(stream);
 
     const newPeer = new Peer({
@@ -141,11 +136,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       socket.emit("answerCall", updated);
     });
 
-    newPeer.on("stream", (incomingStream) => {
-      console.log("📥 Receiver received remote stream");
-      setRemoteStream(incomingStream);
-    });
-
+    newPeer.on("stream", setRemoteStream);
     newPeer.on("close", endCall);
     newPeer.on("error", (err) => {
       toast.error(`Call error: ${err.message}`);
@@ -153,9 +144,8 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     });
 
     newPeer.signal(ongoingCall.participants.signal);
-    setPeer(newPeer);
-
     setOngoingCall((prev) => prev ? { ...prev, isRinging: false } : null);
+    setPeer(newPeer);
     router.push(`/call/${ongoingCall.participants.callId}`);
   }, [socket, ongoingCall, getMediaStream, endCall, router]);
 
