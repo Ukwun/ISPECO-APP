@@ -1,12 +1,13 @@
 "use client";
 
-import { useSocket } from '@/context/SocketContext';
-import { useUser } from '@clerk/nextjs';
 import { useEffect, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { Phone, PhoneOff } from "lucide-react";
+
+import { useSocket } from "@/context/SocketContext";
 import { Button } from "./ui/button";
-import Avatar from './avatar';
-import { Phone, PhoneOff, PhoneCall } from 'lucide-react';
+import Avatar from "./avatar";
 
 const CallNotification = () => {
   const { user } = useUser();
@@ -20,7 +21,9 @@ const CallNotification = () => {
     if (isReceiver) {
       const timer = setTimeout(() => {
         handleDecline();
-        toast.warning(`Missed call from ${ongoingCall?.participants.caller.username}.`);
+        toast.warning(
+          `Missed call from ${ongoingCall?.participants.caller.username}.`
+        );
       }, 30000);
       return () => clearTimeout(timer);
     }
@@ -45,17 +48,25 @@ const CallNotification = () => {
         </div>
 
         <div className="flex flex-col gap-1">
-          <div className="text-slate-800 text-3xl font-bold">
-            {caller?.username}
-          </div>
+          <div className="text-slate-800 text-3xl font-bold">{caller?.username}</div>
           <p className="text-slate-500 text-sm">is calling you...</p>
         </div>
 
         <div className="flex gap-6 mt-4">
-          <Button onClick={handleDecline} variant="destructive" size="lg" className="rounded-full p-4 h-auto">
+          <Button
+            onClick={handleDecline}
+            variant="destructive"
+            size="lg"
+            className="rounded-full p-4 h-auto"
+          >
             <PhoneOff size={28} />
           </Button>
-          <Button onClick={handleAnswer} variant="default" size="lg" className="bg-green-500 hover:bg-green-600 rounded-full p-4 h-auto">
+          <Button
+            onClick={handleAnswer}
+            variant="default"
+            size="lg"
+            className="bg-green-500 hover:bg-green-600 rounded-full p-4 h-auto"
+          >
             <Phone size={28} />
           </Button>
         </div>

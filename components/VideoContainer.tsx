@@ -6,7 +6,7 @@ interface IVideoContainer {
   isOnCall: boolean;
 }
 
-const VideoContainer = ({ stream, isLocalStream, isOnCall }: IVideoContainer) => {
+const VideoContainer = ({ stream, isLocalStream }: IVideoContainer) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
