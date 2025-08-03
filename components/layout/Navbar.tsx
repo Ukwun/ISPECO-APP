@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Video, LogOut } from 'lucide-react';
-import { UserButton, useAuth } from '@clerk/nextjs';
+import { UserButton, useAuth, SignInButton, SignUpButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import Container from './Container';
 import OnlineUsers from '@/components/OnlineUsers';
@@ -25,7 +25,7 @@ const Navbar = () => {
           </div>
 
           {/* Right Section */}
-          {isSignedIn && (
+          {isSignedIn ? (
             <div className="flex items-center gap-4">
               {/* User Avatar & Sign Out */}
               <UserButton afterSignOutUrl="/" />
@@ -44,6 +44,15 @@ const Navbar = () => {
               <div className="hidden md:flex">
                 <OnlineUsers variant="navbar" />
               </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <SignInButton mode="modal">
+                <Button variant="outline">Sign In</Button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <Button variant="default">Sign Up</Button>
+              </SignUpButton>
             </div>
           )}
         </div>
