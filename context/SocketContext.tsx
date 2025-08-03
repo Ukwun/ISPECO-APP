@@ -165,7 +165,10 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   useEffect(() => {
     const newSocket = io();
     setSocket(newSocket);
-    return () => newSocket.disconnect();
+
+    return function cleanup(): void {
+      newSocket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
