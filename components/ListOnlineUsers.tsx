@@ -1,20 +1,18 @@
-"use client";
+'use client';
 
-import { useSocket } from "@/context/SocketContext";
-import { useUser } from "@clerk/nextjs";
-import Avatar from "@/components/avatar";
+import { useSocket } from '@/context/SocketContext';
+import { useUser } from '@clerk/nextjs';
+import Avatar from '@/components/avatar';
 
 const ListOnlineUsers = () => {
   const { user } = useUser();
   const { onlineUsers, handleCall } = useSocket();
 
-  const otherOnlineUsers = onlineUsers?.filter(
-    (onlineUser) => onlineUser.id !== user?.id
-  );
+  const otherOnlineUsers = onlineUsers?.filter((onlineUser) => onlineUser.id !== user?.id);
 
-  console.log("✅ Online users:", onlineUsers);
+  console.log('✅ Online users:', onlineUsers);
 
-  console.log("👤 Current user:", user?.id);
+  console.log('👤 Current user:', user?.id);
 
   return (
     <div className="w-full border-b-primary/10 p-4">

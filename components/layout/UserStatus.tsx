@@ -1,8 +1,8 @@
 'use client';
 
-import { UserButton, useAuth } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { UserButton, useAuth } from '@clerk/nextjs';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function UserStatus({ hideAuthLinks = false }: { hideAuthLinks?: boolean }) {
   const { userId, isSignedIn } = useAuth();

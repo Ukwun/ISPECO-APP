@@ -6,7 +6,7 @@ export type SocketUser = {
 };
 
 export type PeerSignalData = {
-  type: "offer" | "answer";
+  type: 'offer' | 'answer';
   sdp?: string;
   candidate?: RTCIceCandidateInit;
 };

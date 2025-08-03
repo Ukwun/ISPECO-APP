@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import React from "react";
-import { useSocket } from "@/context/SocketContext";
+import React from 'react';
+import { useSocket } from '@/context/SocketContext';
 
 const OnlineUsers = () => {
   const { onlineUsers, handleCall, socket } = useSocket();
@@ -12,7 +12,7 @@ const OnlineUsers = () => {
   return (
     <div className="p-4 border rounded-lg bg-white shadow-sm max-w-md mx-auto">
       <h2 className="text-lg font-semibold mb-4">📡 Online Users</h2>
-      
+
       {onlineUsers?.length === 1 && <p>No other users online.</p>}
 
       <ul className="space-y-3">

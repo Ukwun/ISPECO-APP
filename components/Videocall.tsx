@@ -1,17 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import { useSocket } from "@/context/SocketContext";
-import VideoContainer from "./VideoContainer";
-import { MdMic, MdMicOff, MdVideocam, MdVideocamOff } from "react-icons/md";
+import { useEffect, useState, useCallback } from 'react';
+import { useSocket } from '@/context/SocketContext';
+import VideoContainer from './VideoContainer';
+import { MdMic, MdMicOff, MdVideocam, MdVideocamOff } from 'react-icons/md';
 
 const VideoCall = () => {
-  const {
-    myStream,
-    remoteStream,
-    endCall,
-    ongoingCall,
-  } = useSocket();
+  const { myStream, remoteStream, endCall, ongoingCall } = useSocket();
 
   const [isMicOn, setIsMicOn] = useState(true);
   const [isVidOn, setIsVidOn] = useState(true);
@@ -47,18 +42,10 @@ const VideoCall = () => {
       {/* Show both local and remote video streams */}
       <div className="flex gap-6">
         {myStream && (
-          <VideoContainer
-            stream={myStream}
-            isLocalStream={true}
-            isOnCall={!!ongoingCall}
-          />
+          <VideoContainer stream={myStream} isLocalStream={true} isOnCall={!!ongoingCall} />
         )}
         {remoteStream && (
-          <VideoContainer
-            stream={remoteStream}
-            isLocalStream={false}
-            isOnCall={!!ongoingCall}
-          />
+          <VideoContainer stream={remoteStream} isLocalStream={false} isOnCall={!!ongoingCall} />
         )}
       </div>
 
@@ -69,10 +56,7 @@ const VideoCall = () => {
             {isMicOn ? <MdMicOff size={28} /> : <MdMic size={28} />}
           </button>
 
-          <button
-            className="px-4 py-2 bg-rose-500 text-white rounded"
-            onClick={endCall}
-          >
+          <button className="px-4 py-2 bg-rose-500 text-white rounded" onClick={endCall}>
             End Call
           </button>
 

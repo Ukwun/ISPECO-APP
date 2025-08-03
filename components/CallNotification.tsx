@@ -1,36 +1,32 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
-import { toast } from "sonner";
-import { Phone, PhoneOff } from "lucide-react";
+import { useEffect, useMemo } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { toast } from 'sonner';
+import { Phone, PhoneOff } from 'lucide-react';
 
-import { useSocket } from "@/context/SocketContext";
-import { Button } from "./ui/button";
-import Avatar from "./avatar";
+import { useSocket } from '@/context/SocketContext';
+import { Button } from './ui/button';
+import Avatar from './avatar';
 
 const CallNotification = () => {
   const { user } = useUser();
   const { ongoingCall, handleAnswer, handleDecline } = useSocket();
 
-  const isReceiver =
-    ongoingCall?.isRinging &&
-    ongoingCall.participants.receiver.id === user?.id;
+  const isReceiver = ongoingCall?.isRinging && ongoingCall.participants.receiver.id === user?.id;
 
   useEffect(() => {
     if (isReceiver) {
       const timer = setTimeout(() => {
         handleDecline();
-        toast.warning(
-          `Missed call from ${ongoingCall?.participants.caller.username}.`
-        );
+        toast.warning(`Missed call from ${ongoingCall?.participants.caller.username}.`);
       }, 30000);
       return () => clearTimeout(timer);
     }
   }, [isReceiver, ongoingCall, handleDecline]);
 
   useEffect(() => {
-    console.log("📲 Ongoing call data:", ongoingCall);
+    console.log('📲 Ongoing call data:', ongoingCall);
   }, [ongoingCall]);
 
   const caller = useMemo(() => ongoingCall?.participants.caller, [ongoingCall]);
