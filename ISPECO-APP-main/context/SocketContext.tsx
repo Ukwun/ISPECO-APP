@@ -179,9 +179,10 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
   useEffect(() => {
     // Connect to the deployed backend URL in production, or localhost in development
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
-    const newSocket = io(socketUrl);
-    setSocket(newSocket);
+  // Connect to the serverless Socket.IO endpoint
+  const socketUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || '/api/socket';
+  const newSocket = io(socketUrl, { path: '/api/socket' });
+  setSocket(newSocket);
 
     return function cleanup(): void {
       newSocket.disconnect();
