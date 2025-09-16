@@ -62,7 +62,6 @@ io.on('connection', (socket) => {
   socket.on('answerCall', (data) => {
     const { caller } = data;
     const callerUser = getUser(caller.id);
-
     if (callerUser) {
       io.to(callerUser.socketId).emit('callAccepted', data);
     }
