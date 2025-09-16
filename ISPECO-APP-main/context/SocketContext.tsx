@@ -21,6 +21,7 @@ interface ISocketContext {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   endCall: () => void;
+  myStream: MediaStream | null;
 }
 
 type ChatMessage = {
@@ -252,6 +253,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
         handleDecline,
         remoteStream,
         endCall,
+        myStream: localStream,
       }}
     >
       {children}
