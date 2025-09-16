@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import type { SocketUser, Participants } from '../types';
+import type { SocketUser, Participants } from './types';
 
 // This setup assumes you are running this as a separate Node.js process.
 const io = new Server(3001, {
