@@ -79,19 +79,22 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
   const endCall = useCallback(() => {
     if (socket && ongoingCall && user) {
-      const otherUser =
+      const otherUserId =
         ongoingCall.participants.caller.id === user.id
-          ? ongoingCall.participants.receiver
-          : ongoingCall.participants.caller;
-      socket.emit('endCall', { otherUserId: otherUser.id });
+          ? ongoingCall.participants.receiver.id
+          : ongoingCall.participants.caller.id;
+      socket.emit('endCall', { otherUserId });
     }
     cleanupCall();
   }, [socket, ongoingCall, user, cleanupCall]);
 
   const handleCall = useCallback(
     async (receiver: SocketUser) => {
-      if (!currentSocketUser || !socket || !localStream) {
-        toast.error('Your camera is not available. Cannot start call.');
+      if (!currentSocketUser || !socket) return;
+
+      const stream = await initializeLocalStream();
+      if (!stream) {
+        // The error toast is already handled inside initializeLocalStream
         return;
       }
 
@@ -99,7 +102,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       const newPeer = new Peer({
         initiator: true,
         trickle: false,
-        stream: localStream,
+        stream: stream,
         config: ICE_SERVERS,
       });
 
@@ -118,8 +121,14 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
       setPeer(newPeer);
     },
-    [socket, currentSocketUser, localStream, endCall],
+    [socket, currentSocketUser, initializeLocalStream, endCall],
   );
+
+  const handleDecline = useCallback(() => {
+    if (!socket || !ongoingCall) return;
+    socket.emit('declineCall', ongoingCall.participants);
+    cleanupCall();
+  }, [socket, ongoingCall, cleanupCall]);
 
   const handleAnswer = useCallback(async () => {
     if (!socket || !ongoingCall) return;
@@ -128,7 +137,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     if (!stream) {
       // Error is already toasted inside initializeLocalStream.
       // Decline the call automatically if permission is denied.
-      handleDecline();
+      handleDecline(); // This is now safe to call
       return;
     }
 
@@ -157,12 +166,6 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
     router.push(`/call/${ongoingCall.participants.callId}`);
   }, [socket, ongoingCall, initializeLocalStream, handleDecline, endCall, router]);
 
-  const handleDecline = useCallback(() => {
-    if (!socket || !ongoingCall) return;
-    socket.emit('declineCall', ongoingCall.participants);
-    cleanupCall();
-  }, [socket, ongoingCall, cleanupCall]);
-
   const sendMessage = (text: string) => {
     if (socket && currentSocketUser) {
       socket.emit('sendMessage', {
@@ -175,7 +178,9 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    const newSocket = io();
+    // Connect to the deployed backend URL in production, or localhost in development
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+    const newSocket = io(socketUrl);
     setSocket(newSocket);
 
     return function cleanup(): void {
@@ -204,7 +209,7 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       setOngoingCall({ participants, isRinging: true });
     });
     socket.on('callAccepted', (participants: Participants) => {
-      // This is the crucial fix: The caller's peer must be signaled with the receiver's answer.
+      // This is the crucial part: The caller's peer must be signaled with the receiver's answer.
       if (peer && participants.signal) {
         peer.signal(participants.signal);
       }

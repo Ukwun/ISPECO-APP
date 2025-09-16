@@ -63,6 +63,8 @@ app.prepare().then(() => {
       if (callerUser?.socketId) {
         io.to(callerUser.socketId).emit('callDeclined');
         console.log('❌ Call declined by receiver.');
+      } else {
+        console.log('📞 Caller not found to decline call.');
       }
     });
 
@@ -72,6 +74,8 @@ app.prepare().then(() => {
       if (otherUser?.socketId) {
         io.to(otherUser.socketId).emit('callEnded');
         console.log('👋 Call ended with', otherUser.username);
+      } else {
+        console.log('📞 Other user not found to end call.');
       }
     });
 
