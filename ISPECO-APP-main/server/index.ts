@@ -6,8 +6,12 @@ import type { SocketUser } from "./types";
 const app = express();
 const server = createServer(app);
 
-// Render provides PORT in env
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+
+// Force PORT to be set by environment (Render always sets it)
+if (!process.env.PORT) {
+  throw new Error('PORT environment variable must be set!');
+}
+const PORT = parseInt(process.env.PORT, 10);
 
 const io = new Server(server, {
   cors: {
