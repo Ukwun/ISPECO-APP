@@ -103,11 +103,15 @@ app.get("/", (_: Request, res: Response) => {
   res.send("✅ ISPECO Socket.IO server is running");
 });
 
-try {
-  server.listen(PORT, () => {
-    console.log(`✅ [STARTUP] Server successfully listening on port ${PORT}`);
-  });
-} catch (err) {
-  console.error('❌ [ERROR] Failed to start server:', err);
+console.log(`[DIAG] PORT env value: ${process.env.PORT}`);
+process.on('uncaughtException', (err) => {
+  console.error('❌ [UNCAUGHT EXCEPTION]', err);
   process.exit(1);
-}
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ [UNHANDLED REJECTION]', reason);
+  process.exit(1);
+});
+server.listen(PORT, () => {
+  console.log(`✅ [STARTUP] Server successfully listening on port ${PORT}`);
+});
