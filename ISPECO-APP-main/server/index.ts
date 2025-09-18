@@ -103,6 +103,11 @@ app.get("/", (_: Request, res: Response) => {
   res.send("✅ ISPECO Socket.IO server is running");
 });
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-});
+try {
+  server.listen(PORT, () => {
+    console.log(`✅ [STARTUP] Server successfully listening on port ${PORT}`);
+  });
+} catch (err) {
+  console.error('❌ [ERROR] Failed to start server:', err);
+  process.exit(1);
+}
