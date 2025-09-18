@@ -1,12 +1,22 @@
+
 'use client';
 
-import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
+
+import {
+  createContext,
+  useContext,
+  ReactNode,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { io, Socket as IOSocket } from 'socket.io-client';
-import Peer, { SignalData } from 'simple-peer';
+import Peer from 'simple-peer';
 import { toast } from 'sonner';
 import { OngoingCall, Participants, SocketUser } from '@/types';
+
 
 interface ISocketContext {
   socket: IOSocket | null;
@@ -24,6 +34,7 @@ interface ISocketContext {
   myStream: MediaStream | null;
 }
 
+
 type ChatMessage = {
   text: string;
   senderId: string;
@@ -32,11 +43,14 @@ type ChatMessage = {
   timestamp: string;
 };
 
+
 export const SocketContext = createContext<ISocketContext | null>(null);
+
 
 export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useUser();
   const router = useRouter();
+
   const [socket, setSocket] = useState<IOSocket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<SocketUser[] | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -92,34 +106,21 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   const handleCall = useCallback(
     async (receiver: SocketUser) => {
       if (!currentSocketUser || !socket) return;
-
       const stream = await initializeLocalStream();
-      if (!stream) {
-        // The error toast is already handled inside initializeLocalStream
-        return;
-      }
-
+      if (!stream) return;
       const callId = crypto.randomUUID();
-      const newPeer = new Peer({
-        initiator: true,
-        trickle: false,
-        stream: stream,
-        config: ICE_SERVERS,
-      });
-
+      const newPeer = new Peer({ initiator: true, trickle: false, stream, config: ICE_SERVERS });
       newPeer.on('signal', (signal) => {
         const participants: Participants = { callId, caller: currentSocketUser, receiver, signal };
         socket.emit('call', participants);
         setOngoingCall({ participants, isRinging: false });
       });
-
       newPeer.on('stream', setRemoteStream);
       newPeer.on('close', endCall);
       newPeer.on('error', (err) => {
         toast.error(`Call failed: ${err.message}`);
         endCall();
       });
-
       setPeer(newPeer);
     },
     [socket, currentSocketUser, initializeLocalStream, endCall],
@@ -133,34 +134,22 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
   const handleAnswer = useCallback(async () => {
     if (!socket || !ongoingCall) return;
-
     const stream = await initializeLocalStream();
     if (!stream) {
-      // Error is already toasted inside initializeLocalStream.
-      // Decline the call automatically if permission is denied.
-      handleDecline(); // This is now safe to call
+      handleDecline();
       return;
     }
-
-    const newPeer = new Peer({
-      initiator: false,
-      trickle: false,
-      stream: stream,
-      config: ICE_SERVERS,
-    });
-
+    const newPeer = new Peer({ initiator: false, trickle: false, stream, config: ICE_SERVERS });
     newPeer.on('signal', (signal) => {
       const updated = { ...ongoingCall.participants, signal };
       socket.emit('answerCall', updated);
     });
-
     newPeer.on('stream', setRemoteStream);
     newPeer.on('close', endCall);
     newPeer.on('error', (err) => {
       toast.error(`Call error: ${err.message}`);
       endCall();
     });
-
     newPeer.signal(ongoingCall.participants.signal);
     setOngoingCall((prev) => (prev ? { ...prev, isRinging: false } : null));
     setPeer(newPeer);
@@ -179,30 +168,24 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
   };
 
   useEffect(() => {
-    // Connect to the deployed backend URL in production, or localhost in development
-  // Connect to the serverless Socket.IO endpoint
-  const socketUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL;
-  const newSocket = io(socketUrl);
-  setSocket(newSocket);
-
-    return function cleanup(): void {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL;
+    const newSocket = io(socketUrl);
+    setSocket(newSocket);
+    return () => {
       newSocket.disconnect();
     };
   }, []);
 
   useEffect(() => {
     if (!socket || !user) return;
-
     const socketUser = {
       id: user.id,
       username: user.username || user.firstName || 'Anonymous',
       profile: user.imageUrl,
     };
-
     const onConnect = () => {
       socket.emit('addNewUser', socketUser);
     };
-
     if (socket.connected) onConnect();
     socket.on('connect', onConnect);
     socket.on('getUsers', (users: SocketUser[]) => setOnlineUsers(users));
@@ -211,7 +194,6 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       setOngoingCall({ participants, isRinging: true });
     });
     socket.on('callAccepted', (participants: Participants) => {
-      // This is the crucial part: The caller's peer must be signaled with the receiver's answer.
       if (peer && participants.signal) {
         peer.signal(participants.signal);
       }
@@ -226,7 +208,6 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
       toast.info('The other user has ended the call.');
       cleanupCall();
     });
-
     return () => {
       socket.off('connect', onConnect);
       socket.off('getUsers');
@@ -263,6 +244,8 @@ export const SocketContextProvider: React.FC<{ children: ReactNode }> = ({ child
 
 export const useSocket = () => {
   const context = useContext(SocketContext);
-  if (!context) throw new Error('useSocket must be used within SocketContextProvider');
+  if (!context) {
+    throw new Error('useSocket must be used within SocketContextProvider');
+  }
   return context;
 };

@@ -15,7 +15,8 @@ const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         handleCall: () => {},
         handleAnswer: () => {},
         handleDecline: () => {},
-        myStream: null,
+  myStream: null,
+  initializeLocalStream: async () => null,
         remoteStream: null,
         endCall: () => {},
       }}
